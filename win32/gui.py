@@ -116,8 +116,10 @@ EXCLUDED_WINDOWS_CHECKS = [
     'zk',
 ]
 
-WINDOWS_ONLY_CHECKS = [
+EXCLUDED_MAC_CHECKS = [
+    'cacti',
     'iis',
+    'sqlserver',
     'win32_event_log',
     'windows_service',
     'wmi_check',
@@ -160,7 +162,7 @@ def get_checks():
         if get_os() == 'windows':
             excluded_checks = EXCLUDED_WINDOWS_CHECKS
         else:
-            excluded_checks = WINDOWS_ONLY_CHECKS
+            excluded_checks = EXCLUDED_MAC_CHECKS
         if filename.split('.')[0] in excluded_checks:
             continue
         if ext not in ('.yaml', '.example', '.disabled'):
