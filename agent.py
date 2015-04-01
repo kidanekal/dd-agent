@@ -35,7 +35,6 @@ from config import (
 )
 from daemon import AgentSupervisor, Daemon
 from emitter import http_emitter
-from jmxfetch import JMXFetch, JMX_LIST_COMMANDS
 from util import (
     EC2,
     get_hostname,
@@ -44,6 +43,7 @@ from util import (
 )
 from utils.flare import configcheck, Flare
 from utils.pidfile import PidFile
+from utils.platform import Platform
 from utils.profile import AgentProfiler
 
 # Constants
@@ -329,7 +329,23 @@ def main():
         configcheck()
 
     elif 'jmx' == command:
-        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS.keys():
+        if Platform.is_mac():
+            # Custom load needed by the Mac Agent
+            import imp
+            import inspect
+            jmxfetch_module = imp.load_source('jmxfetch', os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                'jmxfetch.py'
+            ))
+            for name, content in inspect.getmembers(jmxfetch_module):
+                if name == 'JMX_LIST_COMMANDS':
+                    JMX_LIST_COMMANDS = content
+                elif name == 'JMXFetch':
+                    JMXFetch = content
+        else:
+            from jmxfetch import JMXFetch, JMX_LIST_COMMANDS
+
+        if len(args) < 2 or args[1] not in JMX_LIST_COMMANDS:
             print "#" * 80
             print "JMX tool to be used to help configuring your JMX checks."
             print "See http://docs.datadoghq.com/integrations/java/ for more information"
