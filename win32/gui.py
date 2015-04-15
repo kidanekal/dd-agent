@@ -33,6 +33,7 @@ from guidata.qt.QtCore import (
     SIGNAL,
 )
 from guidata.qt.QtGui import (
+    QApplication,
     QFont,
     QGroupBox,
     QHBoxLayout,
@@ -71,7 +72,8 @@ from config import (
     get_logging_config,
     get_version
 )
-from util import get_os, yLoader
+from util import yLoader
+from utils.platform import Platform
 
 # 3rd Party
 import yaml
@@ -85,7 +87,7 @@ AGENT_STOPPED = 3
 AGENT_UNKNOWN = 4
 
 # Import Windows stuff only on Windows
-if get_os() == 'windows':
+if Platform.is_windows():
     import win32serviceutil
     import win32service
     WIN_STATUS_TO_AGENT = {
@@ -139,27 +141,16 @@ HUMAN_SERVICE_STATUS = {
 
 REFRESH_PERIOD = 5000
 
-START_AGENT = "Start Agent"
-STOP_AGENT = "Stop Agent"
-RESTART_AGENT = "Restart Agent"
-EXIT_MANAGER = "Exit Agent Manager"
 OPEN_LOG = "Open log file"
-
-SYSTEM_TRAY_MENU = [
-    (START_AGENT, lambda: agent_manager("start")),
-    (STOP_AGENT, lambda: agent_manager("stop")),
-    (RESTART_AGENT, lambda: agent_manager("restart")),
-    (EXIT_MANAGER, lambda: sys.exit(0)),
-]
 
 
 def get_checks():
     checks = {}
-    conf_d_directory = get_confd_path(get_os())
+    conf_d_directory = get_confd_path()
 
     for filename in sorted(os.listdir(conf_d_directory)):
         module_name, ext = osp.splitext(filename)
-        if get_os() == 'windows':
+        if Platform.is_windows():
             excluded_checks = EXCLUDED_WINDOWS_CHECKS
         else:
             excluded_checks = EXCLUDED_MAC_CHECKS
@@ -408,18 +399,10 @@ class HTMLWindow(QTextEdit):
 
 class MainWindow(QSplitter):
     def __init__(self, parent=None):
-        current_os = get_os()
         prefix_conf = ''
 
-        if current_os == 'windows':
+        if Platform.is_windows():
             prefix_conf = 'windows_'
-        else:
-            add_image_path(osp.join(os.getcwd(), 'images'))
-            # add datadog-agent in PATH
-            os.environ['PATH'] = "{0}:{1}".format(
-                osp.join(os.getcwd(), '../MacOS'),
-                os.environ['PATH']
-            )
 
         log_conf = get_logging_config()
 
@@ -552,14 +535,32 @@ class MainWindow(QSplitter):
             "JMX log file"
         )
 
+    def show(self):
+        QSplitter.show(self)
+        self.raise_()
+
 
 class Menu(QMenu):
+    ABOUT = "Datadog Agent v{0}"
+    START = "Start"
+    STOP = "Stop"
+    RESTART = "Restart"
+    EXIT = "Exit"
 
-    def __init__(self, parent=None, ):
+    def __init__(self, parent=None):
         QMenu.__init__(self, parent)
         self.options = {}
+        system_tray_menu = [
+            (self.START, lambda: agent_manager("start")),
+            (self.STOP, lambda: agent_manager("stop")),
+            (self.RESTART, lambda: agent_manager("restart")),
+            (self.EXIT, lambda: sys.exit(0)),
+        ]
+        # First the version
+        self.addAction(self.ABOUT.format(get_version())).setEnabled(False)
+        self.addSeparator()
 
-        for name, action in SYSTEM_TRAY_MENU:
+        for name, action in system_tray_menu:
             menu_action = self.addAction(name)
             self.connect(menu_action, SIGNAL('triggered()'), action)
             self.options[name] = menu_action
@@ -569,17 +570,17 @@ class Menu(QMenu):
     def update_options(self):
         status = agent_status()
         if status == AGENT_RUNNING:
-            self.options[START_AGENT].setEnabled(False)
-            self.options[RESTART_AGENT].setEnabled(True)
-            self.options[STOP_AGENT].setEnabled(True)
+            self.options[self.START].setEnabled(False)
+            self.options[self.RESTART].setEnabled(True)
+            self.options[self.STOP].setEnabled(True)
         elif status == AGENT_STOPPED:
-            self.options[START_AGENT].setEnabled(True)
-            self.options[RESTART_AGENT].setEnabled(False)
-            self.options[STOP_AGENT].setEnabled(False)
+            self.options[self.START].setEnabled(True)
+            self.options[self.RESTART].setEnabled(False)
+            self.options[self.STOP].setEnabled(False)
         elif status in [AGENT_START_PENDING, AGENT_STOP_PENDING]:
-            self.options[START_AGENT].setEnabled(False)
-            self.options[RESTART_AGENT].setEnabled(False)
-            self.options[STOP_AGENT].setEnabled(False)
+            self.options[self.START].setEnabled(False)
+            self.options[self.RESTART].setEnabled(False)
+            self.options[self.STOP].setEnabled(False)
 
 
 class SettingMenu(QMenu):
@@ -690,14 +691,14 @@ def osx_manager_status():
 
 
 def agent_status():
-    if get_os() == 'windows':
+    if Platform.is_windows():
         return service_manager_status()
     else:
         return osx_manager_status()
 
 
 def agent_manager(action, async=True):
-    if get_os() == 'windows':
+    if Platform.is_windows():
         manager = service_manager
     else:
         manager = osx_manager
@@ -716,8 +717,16 @@ def info_popup(message, parent=None):
 
 
 if __name__ == '__main__':
-    from guidata.qt.QtGui import QApplication
     app = QApplication([])
-    win = MainWindow()
+    if Platform.is_mac():
+        add_image_path(osp.join(os.getcwd(), 'images'))
+        # add datadog-agent in PATH
+        os.environ['PATH'] = "{0}:{1}".format(
+            osp.join(os.getcwd(), '../MacOS'),
+            os.environ['PATH']
+        )
+        win = SystemTray() if len(sys.argv) < 2 else MainWindow()
+    else:
+        win = MainWindow()
     win.show()
     app.exec_()
