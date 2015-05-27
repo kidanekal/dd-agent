@@ -109,7 +109,7 @@ namespace :ci do
 
     task :install do |t|
       section('INSTALL')
-      sh %(pip install --upgrade pip setuptools)
+      sh %(python -m pip install --upgrade pip setuptools)
       sh %(pip install\
            -r requirements.txt\
            --cache-dir $PIP_CACHE\
@@ -172,7 +172,7 @@ namespace :ci do
       # FIXME: make the other filters than param configurable
       # For integrations that cannot be easily installed in a
       # separate dir we symlink stuff in the rootdir
-      sh %(PATH=$INTEGRATIONS_DIR/bin:$PATH nosetests -v -A '#{nose}'\
+      sh %(PATH=%INTEGRATIONS_DIR%/bin:%PATH% nosetests -v -A '#{nose}'\
            #{tests_directory})
       t.reenable
     end

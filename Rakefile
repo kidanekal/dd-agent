@@ -36,13 +36,14 @@ require './ci/sysstat'
 require './ci/tokumx'
 require './ci/tomcat'
 require './ci/varnish'
+require './ci/windows'
 require './ci/zookeeper'
 
 CLOBBER.include '**/*.pyc'
 
 # Travis-like environment for local use
 
-unless ENV['TRAVIS']
+unless ENV['CI']
   rakefile_dir = File.dirname(__FILE__)
   ENV['TRAVIS_BUILD_DIR'] = rakefile_dir
   ENV['INTEGRATIONS_DIR'] = File.join(rakefile_dir, 'embedded')
