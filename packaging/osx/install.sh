@@ -56,7 +56,7 @@ cd / && $sudo_cmd /usr/sbin/installer -pkg `find "/Volumes/datadog_agent" -name 
 $sudo_cmd hdiutil detach "/Volumes/datadog_agent" >/dev/null
 
 # Set the configuration
-if grep 'api_key:$' "/Applications/Datadog Agent.app/Contents/Resources/datadog.conf" > /dev/null 2>&1; then
+if egrep 'api_key:( APIKEY)?$' "/Applications/Datadog Agent.app/Contents/Resources/datadog.conf" > /dev/null 2>&1; then
     printf "\033[34m\n* Adding your API key to the Agent configuration: datadog.conf\n\033[0m\n"
     $sudo_cmd sh -c "sed -i '' 's/api_key:.*/api_key: $apikey/' \"/Applications/Datadog Agent.app/Contents/Resources/datadog.conf\""
     $sudo_cmd chown $real_user:admin "/Applications/Datadog Agent.app/Contents/Resources/datadog.conf"
